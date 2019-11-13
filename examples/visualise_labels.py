@@ -38,7 +38,7 @@ def display_labels_on_image(camera_calibration, camera, labels, display_time = -
     cv2.waitKey(display_time)
     
 if len(sys.argv) != 2:
-    print("""Usage: python visualise_groundtruth.py <datafile>
+    print("""Usage: python visualise_labels.py <datafile>
 Display the groundtruth 3D bounding boxes on the front camera video stream.""")
     sys.exit(0)
 

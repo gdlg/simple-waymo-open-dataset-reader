@@ -15,6 +15,7 @@
 
 import numpy as np
 import math
+import cv2
 import io
 import sys
 
@@ -22,9 +23,56 @@ from simple_waymo_open_dataset_reader import WaymoDataFileReader
 from simple_waymo_open_dataset_reader import dataset_pb2, label_pb2
 from simple_waymo_open_dataset_reader import utils
 
+import matplotlib.cm
+cmap = matplotlib.cm.get_cmap("viridis")
+
+def display_labels_on_image(camera_calibration, img, labels, visibility):
+
+    # Get the transformation matrix from the vehicle frame to image space.
+    vehicle_to_image = utils.get_image_transform(camera_calibration)
+
+    # Draw all the groundtruth labels
+    for label,vis in zip(labels, visibility):
+        if vis:
+            colour = (0,0,200)
+        else:
+            colour = (128,0,0)
+
+        utils.draw_3d_box(img, vehicle_to_image, label, colour=colour)
+    
+def display_laser_on_image(img, pcl, vehicle_to_image):
+    # Convert the pointcloud to homogeneous coordinates.
+    pcl1 = np.concatenate((pcl,np.ones_like(pcl[:,0:1])),axis=1)
+
+    # Transform the point cloud to image space.
+    proj_pcl = np.einsum('ij,bj->bi', vehicle_to_image, pcl1) 
+
+    # Filter LIDAR points which are behind the camera.
+    mask = proj_pcl[:,2] > 0
+    proj_pcl = proj_pcl[mask]
+    proj_pcl_attr = pcl_attr[mask]
+
+    # Project the point cloud onto the image.
+    proj_pcl = proj_pcl[:,:2]/proj_pcl[:,2:3]
+
+    # Filter points which are outside the image.
+    mask = np.logical_and(
+        np.logical_and(proj_pcl[:,0] > 0, proj_pcl[:,0] < img.shape[1]),
+        np.logical_and(proj_pcl[:,1] > 0, proj_pcl[:,1] < img.shape[1]))
+
+    proj_pcl = proj_pcl[mask]
+    proj_pcl_attr = proj_pcl_attr[mask]
+
+    # Colour code the points based on distance.
+    coloured_intensity = 255*cmap(proj_pcl_attr[:,0]/30)
+
+    # Draw a circle for each point.
+    for i in range(proj_pcl.shape[0]):
+        cv2.circle(img, (int(proj_pcl[i,0]),int(proj_pcl[i,1])), 1, coloured_intensity[i])
+
 if len(sys.argv) != 2:
-    print("""Usage: python groundtruth_extraction.py <datafile>
-Extract the groundtruth objects in the KITTI tracking benchmark format.""")
+    print("""Usage: python display_laser_on_image.py <datafile>
+Display the groundtruth 3D bounding boxes and LIDAR points on the front camera video stream.""")
     sys.exit(0)
 
 # Open a .tfrecord
@@ -34,11 +82,11 @@ datafile = WaymoDataFileReader(filename)
 # Generate a table of the offset of all frame records in the file.
 table = datafile.get_record_table()
 
-# Dictionary mapping each object to a unique tracking ID.
-object_ids = dict()
+print("There are %d frames in this file." % len(table))
+
 
 # Loop through the whole file
-## and dump the label information.
+## and display 3D labels.
 for frameno,frame in enumerate(datafile):
 
     # Get the top laser information
@@ -52,7 +100,6 @@ for frameno,frame in enumerate(datafile):
     # Convert the range image to a point cloud.
     pcl, pcl_attr = utils.project_to_pointcloud(frame, ri, camera_projection, range_image_pose, laser_calibration)
 
-    
     # Get the front camera information
     camera_name = dataset_pb2.CameraName.FRONT
     camera_calibration = utils.get(frame.context.camera_calibrations, camera_name)
@@ -82,53 +129,19 @@ for frameno,frame in enumerate(datafile):
     # mask shape is [label, LIDAR point]
     mask = np.logical_and.reduce(np.logical_and(proj_pcl >= -1, proj_pcl <= 1),axis=2)
 
-    # Count the points inside each label's box
+    # Count the points inside each label's box.
     counts = mask.sum(1)
 
     # Keep boxes which contain at least 10 LIDAR points.
     visibility = counts > 10
 
-    # Get the transformation matrix from vehicle space to camera space.
-    camera_extrinsic = np.array(camera_calibration.extrinsic.transform).reshape(4,4)
-    camera_extrinsic_inv = np.linalg.inv(camera_extrinsic)
+    # Display the LIDAR points on the image.
+    display_laser_on_image(img, pcl, vehicle_to_image)
 
-    # For each non occluded label
-    for label,labelvis in zip(frame.laser_labels,visibility):
-        if not labelvis:
-            continue
+    # Display the label's 3D bounding box on the image.
+    display_labels_on_image(camera_calibration, img, frame.laser_labels, visibility)
 
-        # Compute the corners of the 3D bounding box of each label
-        # and check that the label is within the view frustum of the camera
-        corners = utils.get_3d_box_projected_corners(vehicle_to_image, label)
-        if corners is None:
-            continue
-
-        # Compute the 2D bounding box of the label
-        bbox = utils.compute_2d_bounding_box(img.shape, corners)
-
-        # Assign a category name to the label
-        if label.type == label_pb2.Label.Type.TYPE_VEHICLE:
-            name = "vehicle"
-        elif label.type == label_pb2.Label.Type.TYPE_PEDESTRIAN:
-            name = "pedestrian"
-        elif label.type == label_pb2.Label.Type.TYPE_SIGN:
-            name = "sign"
-        elif label.type == label_pb2.Label.Type.TYPE_CYCLIST:
-            name = "cyclist"
-        else:
-            continue
-
-        # If this is a new object, create a tracking ID for it.
-        if label.id not in object_ids:
-            object_ids[label.id] = len(object_ids)
-
-        # Transform the label position to the camera space.
-        pos = (label.box.center_x,label.box.center_y,label.box.center_z,1)
-        pos = np.matmul(camera_extrinsic_inv, pos)
-
-        # Compute the relative angle
-        alpha = label.box.heading - math.atan2(pos[2],pos[0])
-
-        # Print the information in the KITTI tracking benchmark format.
-        print(frameno, object_ids[label.id], name, 0, 0, alpha, *bbox, label.box.height, label.box.width, label.box.length, label.box.center_x, label.box.center_y, label.box.center_z, label.box.heading)
+    # Display the image
+    cv2.imshow("Image", img)
+    cv2.waitKey(10)
 

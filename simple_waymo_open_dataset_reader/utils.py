@@ -15,8 +15,6 @@
 
 import numpy as np
 from simple_waymo_open_dataset_reader import dataset_pb2, label_pb2
-from PIL import Image
-import cv2
 import zlib
 import math
 import io
@@ -107,6 +105,7 @@ def draw_3d_box(img, vehicle_to_image, label, colour=(255,128,128), draw_2d_boun
 
     draw_2d_bounding_box: If set a 2D bounding box encompassing the 3D box will be drawn
     """
+    import cv2
 
     vertices = get_3d_box_projected_corners(vehicle_to_image, label)
 
@@ -132,6 +131,7 @@ def draw_3d_box(img, vehicle_to_image, label, colour=(255,128,128), draw_2d_boun
 def draw_2d_box(img, label, colour=(255,128,128)):
     """Draw a 2D bounding from a given 2D label on a given "img".
     """
+    import cv2
 
     box = label.box
 
@@ -149,6 +149,7 @@ def draw_2d_box(img, label, colour=(255,128,128)):
 def decode_image(camera):
     """ Decode the JPEG image. """
 
+    from PIL import Image
     return np.array(Image.open(io.BytesIO(camera.image)))
 
 def get_image_transform(camera_calibration):
