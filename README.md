@@ -12,7 +12,7 @@ python setup.py install
 
 ## Usage
 
-Please refer to `examples/example.py` for a few examples on how to use the file reader. Refer to [https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb](https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb) for more details on Waymo’s dataset.
+Please refer to the examples in `examples/` for how to use the file reader. Refer to [https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb](https://github.com/waymo-research/waymo-open-dataset/blob/master/tutorial/tutorial.ipynb) for more details on Waymo’s dataset.
 
 ## License
 
