@@ -110,6 +110,9 @@ for frameno,frame in enumerate(datafile):
 
     # Decode the image
     img = utils.decode_image(camera)
+    
+    # BGR to RGB
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     # Some of the labels might be fully hidden therefore we attempt to compute the label visibility
     # by counting the number of LIDAR points inside each label bounding box.
