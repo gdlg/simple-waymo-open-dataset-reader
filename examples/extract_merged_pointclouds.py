@@ -25,7 +25,8 @@ save_path_root = filename = sys.argv[2]
 
 total_num_frames = 0
 
-files = os.listdir(path)
+files = sorted(os.listdir(path))
+files = filter(lambda x:x.endswith(".tfrecord"), files)
 
 for file in tqdm(files):
 
