@@ -13,8 +13,15 @@ from simple_waymo_open_dataset_reader import WaymoDataFileReader
 from simple_waymo_open_dataset_reader import dataset_pb2
 from simple_waymo_open_dataset_reader import utils
 
-path = "TODO"
-save_path_root = "TODO"
+if len(sys.argv) != 3:
+    print("""Usage: python extract_merged_pointclouds.py <tf_records_path> <save_path>
+Extracting the merged point clouds from all sensors from all .tfrecord files within the given <tf_records_path>
+and saving each frame as an individual .ply file under the given <save_path>.
+The whole extraction process can take up to 3 days (~70 hours).""")
+    sys.exit(0)
+
+path = filename = sys.argv[1]
+save_path_root = filename = sys.argv[2]
 
 total_num_frames = 0
 
