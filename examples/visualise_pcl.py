@@ -69,14 +69,12 @@ def display_next_frame(event=None):
     pcl, pcl_attr = utils.project_to_pointcloud(frame, ri, camera_projection, range_image_pose, laser_calibration)
 
     # Update the geometry and render the pointcloud
-    pcd.clear()
-    pcd.points.extend(o3d.utility.Vector3dVector(pcl))
+    pcd.points = o3d.utility.Vector3dVector(pcl)
     if once:
         vis.add_geometry(pcd)
         once = False
-
-    vis.update_geometry()
-    vis.reset_view_point(False)
+    else:
+        vis.update_geometry(pcd)
 
 vis.register_key_callback(262, display_next_frame) # Right arrow key
 
@@ -85,6 +83,4 @@ display_next_frame()
 while True:
     vis.poll_events()
     vis.update_renderer()
-
-
 
